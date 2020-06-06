@@ -1,0 +1,520 @@
+---
+title: "Miles per Gallon analysis"
+author: "Noelene Noone"
+date: "18 May 2019"
+output:
+  html_document:
+    df_print: paged
+  word_document: default
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+options(warn=-1) #switch off the warning messages
+```
+# Overview
+
+This study refers to the data published in Motor Trend in 1974 recording the fuel consumption for 32 of 1973-74 model cars.  It answers 2 questions, referring to 10 aspects of car design and performance:
+
+* Is an Automatic or Manual transmission better for Mile Per Gallon fuel consumption?
+
+* Quantify the Mile Per Gallon difference between automatic and manual transmissions.
+
+# Executive Summary
+
+A simple box plot shows that on average automatic cars has a much lower fuel consumption than manual cars.  A series of multi variate regression analysis tests determine what other independent factors also play a determining role in fuel consumption and how can these be quantified.
+
+The conclusion quantifies the Miles per Gallon difference between automatic and manual transmissions, confirming that automatic cars have a lower fuel consumption than manual cars.  It also quantifies the independent (negative) impact the number of carborators in a car has on fuel consumption.
+These two factors combine to form a linear predictive model for fuel consumption.
+
+```{r message = FALSE, echo = FALSE} 
+#list libraries and data set
+library(datasets)
+library(car) #for Anova function
+library(knitr)
+data(mtcars)
+```
+
+# Analysis
+## Exploration
+What does this dataset look like?
+
+```{r eval=FALSE, echo = FALSE}
+## Get to know the dataset
+str(mtcars)
+```
+
+The dataset contains 11 variables with 32 observations, one for each model car.
+Two variables, AM (Transmission) and VS (Engine shape) needs to be converted from 0/1 numeric values to containing factor values.  Reference to the mtcars dataset description gives the values:
+
+- VS which is short for engine shape (0 = V-shaped, 1 = straight)
+
+- AM which is short for the transmission (0 = automatic, 1 = manual)
+
+```{r, echo = FALSE}
+## Define factor variables
+mtcars1 <- within(mtcars, {
+   am <- factor(am, labels = c("automatic", "manual"))
+   vs <- factor(vs, labels = c("V-shaped","straight"))
+})
+```
+
+## Automatic / Manual versus Miles per Gallon
+The box plot (see appendix) shows the average fuel consumption is much lower for automatic than manual cars.  It also shows Automatic cars have a lower variance in MPG than Manual cars.
+
+```{r, echo = FALSE, eval=FALSE}
+#Box plot comparison between Automatic / Manual versus Miles per Gallon
+plot(mtcars1$mpg ~ mtcars1$am, type = "h", main = "MT Cars comparison plot", xlab = "Automatic or Manual", ylab = "Miles per Gallon")
+```
+
+## Determine the model
+
+By performing a series of nested model selections - combining different predictive factors -  with likelyhood ratio tests it is possible to determine the optimal combination of variables predicting fuel consumption.
+
+### First Round
+
+Fit a model for AM combined with each of the other factors.  Find the significant factors by comparing the p-values for Transmission (AM) in each model.  Select models where the low p-value indicates high significance.
+
+```{r, echo = FALSE, results='asis'}
+#fit a model for am combined with each of the other factors
+# find the significant factors by comparing the p-values (rounded to 4 significant decimals) for am in each
+# select factors that give the lowest p-value - with rouding 0 giving a 95% significance
+fit_am = lm(mpg~factor(am), data = mtcars1)
+sum_am <- summary(fit_am)
+fit_am_Fp <- pf(sum_am$fstatistic[1],sum_am$fstatistic[2],sum_am$fstatistic[3],lower.tail = FALSE)
+
+fit_am_hp = update(fit_am,mpg~factor(am)+hp)
+sum_hp <- summary(fit_am_hp)
+fit_am_hp_Fp <- pf(sum_hp$fstatistic[1],sum_hp$fstatistic[2],sum_hp$fstatistic[3],lower.tail = FALSE)
+fit_am_vs = update(fit_am,mpg~factor(am)+factor(vs))
+sum_vs <- summary(fit_am_vs)
+fit_am_vs_Fp <- pf(sum_vs$fstatistic[1],sum_vs$fstatistic[2],sum_vs$fstatistic[3],lower.tail = FALSE)
+fit_am_cyl = update(fit_am,mpg~factor(am)+cyl)
+sum_cyl <- summary(fit_am_cyl)
+fit_am_cyl_Fp <- pf(sum_cyl$fstatistic[1],sum_cyl$fstatistic[2],sum_cyl$fstatistic[3],lower.tail = FALSE)
+fit_am_disp = update(fit_am,mpg~factor(am)+disp)
+sum_disp <- summary(fit_am_disp)
+fit_am_disp_Fp <- pf(sum_disp$fstatistic[1],sum_disp$fstatistic[2],sum_disp$fstatistic[3],lower.tail = FALSE)
+fit_am_drat = update(fit_am,mpg~factor(am)+drat)
+sum_drat <- summary(fit_am_drat)
+fit_am_drat_Fp <- pf(sum_drat$fstatistic[1],sum_drat$fstatistic[2],sum_drat$fstatistic[3],lower.tail = FALSE)
+fit_am_wt = update(fit_am,mpg~factor(am)+wt)
+sum_wt <- summary(fit_am_wt)
+fit_am_wt_Fp <- pf(sum_wt$fstatistic[1],sum_wt$fstatistic[2],sum_wt$fstatistic[3],lower.tail = FALSE)
+fit_am_qsec = update(fit_am,mpg~factor(am)+qsec)
+sum_qsec <- summary(fit_am_qsec)
+fit_am_qsec_Fp <- pf(sum_qsec$fstatistic[1],sum_qsec$fstatistic[2],sum_qsec$fstatistic[3],lower.tail = FALSE)
+fit_am_gear = update(fit_am,mpg~factor(am)+gear)
+sum_gear <- summary(fit_am_gear)
+fit_am_gear_Fp <- pf(sum_gear$fstatistic[1],sum_gear$fstatistic[2],sum_gear$fstatistic[3],lower.tail = FALSE)
+fit_am_carb = update(fit_am,mpg~factor(am)+carb)
+sum_carb <- summary(fit_am_carb)
+fit_am_carb_Fp <- pf(sum_carb$fstatistic[1],sum_carb$fstatistic[2],sum_carb$fstatistic[3],lower.tail = FALSE)
+
+two_stats <- rbind(
+  c("AM and HP",round(summary(fit_am_hp)$coef[2,4],digits=3),round(summary(fit_am_hp)$coef[3,4],digits=3),round(fit_am_hp_Fp,digits=3)),
+  c("AM and VS",round(summary(fit_am_vs)$coef[2,4],digits=3),round(summary(fit_am_vs)$coef[3,4],digits=3),round(fit_am_vs_Fp,digits=3)),
+  c("AM and CYL",round(summary(fit_am_cyl)$coef[2,4],digits=3),round(summary(fit_am_cyl)$coef[3,4],digits=3),round(fit_am_cyl_Fp,digits=3)),
+  c("AM and DISP",round(summary(fit_am_disp)$coef[2,4],digits=3),round(summary(fit_am_disp)$coef[3,4],digits=3),round(fit_am_disp_Fp,digits=3)),
+  c("AM and DRAT",round(summary(fit_am_drat)$coef[2,4],digits=3),round(summary(fit_am_drat)$coef[3,4],digits=3),round(fit_am_drat_Fp,digits=3)),
+  c("AM and WT",round(summary(fit_am_wt)$coef[2,4],digits=3),round(summary(fit_am_wt)$coef[3,4],digits=3),round(fit_am_wt_Fp,digits=3)),
+  c("AM and QSEC",round(summary(fit_am_qsec)$coef[2,4],digits=3),round(summary(fit_am_qsec)$coef[3,4],digits=3),round(fit_am_qsec_Fp,digits=3)),
+  c("AM and GEAR",round(summary(fit_am_gear)$coef[2,4],digits=3),round(summary(fit_am_gear)$coef[3,4],digits=3),round(fit_am_gear_Fp,digits=3)),
+  c("AM and CARB",round(summary(fit_am_carb)$coef[2,4],digits=3),round(summary(fit_am_carb)$coef[3,4],digits=3),round(fit_am_carb_Fp,digits=3)))
+colnames(two_stats) <- c("Fit","p for AM","p for 2nd","p for Model")
+
+#Display the p-values for a two factor model"
+kable(two_stats, padding=2)
+```
+
+When combining AM with HP, VS, QSEC and CARB respectively, the p-value for AM is below 0.01 inidicating significance.
+
+### Second Round
+
+Combine two of HP, VS, QSEC and CARB each with AM. Test the significance of the factors.
+
+```{r, echo = FALSE, results='asis'}
+#Second Round
+#Combine HP, VS, QSEC and CARB each with AM.
+
+fit_am_hp_vs = update(fit_am,mpg~factor(am)+hp+factor(vs))
+sum_hp_vs <- summary(fit_am_hp_vs)
+fit_am_hp_vs_Fp <- pf(sum_hp_vs$fstatistic[1],sum_hp_vs$fstatistic[2],sum_hp_vs$fstatistic[3],lower.tail = FALSE)
+
+fit_am_hp_qsec = update(fit_am,mpg~factor(am)+hp+qsec)
+sum_hp_qsec <- summary(fit_am_hp_qsec)
+fit_am_hp_qsec_Fp <- pf(sum_hp_qsec$fstatistic[1],sum_hp_qsec$fstatistic[2],sum_hp_qsec$fstatistic[3],lower.tail = FALSE)
+
+fit_am_hp_carb = update(fit_am,mpg~factor(am)+hp+carb)
+sum_hp_carb <- summary(fit_am_hp_carb)
+fit_am_hp_carb_Fp <- pf(sum_hp_carb$fstatistic[1],sum_hp_carb$fstatistic[2],sum_hp_carb$fstatistic[3],lower.tail = FALSE)
+
+fit_am_vs_qsec = update(fit_am,mpg~factor(am)+factor(vs)+qsec)
+sum_vs_qsec <- summary(fit_am_vs_qsec)
+fit_am_vs_qsec_Fp <- pf(sum_vs_qsec$fstatistic[1],sum_vs_qsec$fstatistic[2],sum_vs_qsec$fstatistic[3],lower.tail = FALSE)
+
+fit_am_vs_carb = update(fit_am,mpg~factor(am)+factor(vs)+carb)
+sum_vs_carb <- summary(fit_am_vs_carb)
+fit_am_vs_carb_Fp <- pf(sum_vs_carb$fstatistic[1],sum_vs_carb$fstatistic[2],sum_vs_carb$fstatistic[3],lower.tail = FALSE)
+
+fit_am_qsec_carb = update(fit_am,mpg~factor(am)+qsec+carb)
+sum_qsec_carb <- summary(fit_am_qsec_carb)
+fit_am_qsec_carb_Fp <- pf(sum_qsec_carb$fstatistic[1],sum_qsec_carb$fstatistic[2],sum_qsec_carb$fstatistic[3],lower.tail = FALSE)
+
+tripple_stats <- rbind(
+  c("AM, HP and VS",round(summary(fit_am_hp_vs)$coef[2,4],digits=3),round(summary(fit_am_hp_vs)$coef[3,4],digits=3),round(summary(fit_am_hp_vs)$coef[4,4],digits=3),round(fit_am_hp_vs_Fp,digits=3)),
+  c("AM, HP and QSEC",round(summary(fit_am_hp_qsec)$coef[2,4],digits=3),round(summary(fit_am_hp_qsec)$coef[3,4],digits=3),round(summary(fit_am_hp_qsec)$coef[4,4],digits=3),round(fit_am_hp_qsec_Fp,digits=3)),
+  c("AM, HP and CARB",round(summary(fit_am_hp_carb)$coef[2,4],digits=3),round(summary(fit_am_hp_carb)$coef[3,4],digits=3),round(summary(fit_am_hp_carb)$coef[4,4],digits=3),round(fit_am_hp_carb_Fp,digits=3)),
+  c("AM, VS and QSEC",round(summary(fit_am_vs_qsec)$coef[2,4],digits=3),round(summary(fit_am_vs_qsec)$coef[3,4],digits=3),round(summary(fit_am_vs_qsec)$coef[4,4],digits=3),round(fit_am_vs_qsec_Fp,digits=3)),
+  c("AM, VS and CARB",round(summary(fit_am_vs_carb)$coef[2,4],digits=3),round(summary(fit_am_vs_carb)$coef[3,4],digits=3),round(summary(fit_am_vs_carb)$coef[4,4],digits=3),round(fit_am_vs_carb_Fp,digits=3)),
+  c("AM, QSEC and CARB",round(summary(fit_am_qsec_carb)$coef[2,4],digits=3),round(summary(fit_am_qsec_carb)$coef[3,4],digits=3),round(summary(fit_am_qsec_carb)$coef[4,4],digits=3),round(fit_am_qsec_carb_Fp,digits=3)))
+
+colnames(tripple_stats) <- c("Fit","p for AM","p for 2nd","p for 3rd","p for Model")
+
+#Display the p-values for a two factor model"
+kable(tripple_stats, padding=2)
+```
+
+Only the AM, VS and CARB factor combination gives a the p-value below 0.01 for all three factors.  Combine this model with the four selected two factor models.
+
+### Determine best fit linear model
+Referring to the five models, use two tests to determine the best fit model:
+
+**1. ANOVA function analysis of the variance table to test the nested models**
+
+```{r, echo = FALSE, results='asis'}
+#ANOVA analysis of the variance table to test the nested models
+an1 <- anova(fit_am,fit_am_carb)
+an2<-anova(fit_am,fit_am_qsec)
+an3<-anova(fit_am,fit_am_hp)
+an4<-anova(fit_am,fit_am_vs,fit_am_vs_carb)
+
+ANOVA_stats <- rbind(
+  c("AM and CARB",round(an1[2,6],digits=3),"Accept",".",".","."),
+  c("AM and QSEC",round(an2[2,6],digits=3),"Accept",".",".","."),
+  c("AM and HP",round(an3[2,6],digits=3),"Accept",".",".","."),
+  c("AM and VS",round(an4[2,6],digits=3),"Accept","AM, VS and CARB",round(an4[3,6],digits=3),"Accept"))
+
+colnames(ANOVA_stats) <- c("Model","Variance","Result","Model","Variance","Result")
+
+#Display the Variance inflation adding a factor to AM
+kable(ANOVA_stats, padding=2)
+```
+
+The Anova test did not discoutn any of the five models, all a variance below 0.01.
+
+Follow-up: check the variance inflation when adding the second or third factor to determine the best fit.
+
+**2. VIF function to check Variance inflation when adding a factor**
+
+```{r, echo = FALSE, results='asis'}
+#Check Variance inflation with the VIF function
+
+#Variance inflation for fit am and carb
+vif_am_carb <- vif(fit_am_carb)
+#Variance inflation for fit am, and qsec
+vif_am_qsec <- vif(fit_am_qsec)
+#Variance inflation for fit am and hp
+vif_am_hp <- vif(fit_am_hp)
+#Variance inflation for fit am, and vs
+vif_am_vs <- vif(fit_am_vs)
+#Variance inflation for fit am, vs and carb
+vif_am_vs_carb <- vif(fit_am_vs_carb)
+
+VIF_stats <- rbind(
+  c("AM",round(vif_am_carb[1],digits=3),"CARB",round(vif_am_carb[2],digits=3),".","."),
+  c("AM",round(vif_am_qsec[1],digits=3),"QSEC",round(vif_am_qsec[2],digits=3),".","."),
+  c("AM",round(vif_am_hp[1],digits=3),"HP",round(vif_am_hp[2],digits=3),".","."),
+  c("AM",round(vif_am_vs[1],digits=3),"VS",round(vif_am_vs[2],digits=3),".","."),
+  c("AM",round(vif_am_vs_carb[1],digits=3),"VS",round(vif_am_vs_carb[2],digits=3),"CARB",round(vif_am_vs_carb[3],digits=3)))
+
+colnames(VIF_stats) <- c("Factor","Inflation","Factor","Inflation","Factor","Inflation")
+
+#Display the Variance inflation adding a factor to AM
+kable(VIF_stats, padding=2)
+```
+
+The Variance inflation factor for the fit with AM and CARB is 1.003, much lower than any of the other models.  This means there is a low correlation between AM and CARB and points to the best fit model of the five models evaluated.
+
+## Test the model
+
+Perform two tests on the best fit model:
+
+**1. Is an Interaction term required ?**
+
+Fit the model with an interaction term.
+
+```{r, echo = FALSE, results='asis'}
+#Fit a model with an interaction term.
+fit_am_carb_interact = update(fit_am,mpg~factor(am)*carb)
+Interact_stats <- rbind(
+  c(summary(fit_am_carb_interact)$coef[4,1],summary(fit_am_carb_interact)$coef[4,2],summary(fit_am_carb_interact)$coef[4,3],summary(fit_am_carb_interact)$coef[4,4]))
+
+colnames(Interact_stats) <- c("Estimate","Std. Error","t value","Pr(>|t|")
+
+#Display the p-values for a two factor model"
+kable(Interact_stats, padding=2)
+```
+
+Interaction term model has a low t-value and a high p-value. Fail to reject Ho: Interaction term equal to 0.  Conclude not to add the interaction term.
+
+**2. Is there a patern left in the Residual plot**
+
+```{r, echo = FALSE}
+mtcarsplus <- mtcars1
+mtcarsplus$resid = resid(fit_am_carb)
+residsum <- sum(resid(fit_am_carb)) # sum of residuals should be zero
+```
+
+```{r, echo = FALSE, eval=FALSE}
+## Residual plot
+plot(resid~mpg, data=mtcarsplus,main = "Residual plot", xlab = "Miles per Gallon", ylab = "Residuals")
+abline(h=0, col="red")
+```
+
+Once the Systematic variation has been removed from the data with the model, the residual plot (see appendix) shows no pattern in the residual variation.  
+
+In addition the sum of the residuals = `r residsum`.  This is rounded to zero within the mathematical precision provided in R.
+
+## Chosen model
+
+Below the coefficients for best fit to estimate Miles Per Gallon: 
+
+```{r, echo = FALSE}
+#Produce estimates using the chosen model
+summary <- summary(fit_am_carb)$coef[,1]
+
+All <- summary[1]
+Manual <- summary[2]
+Carb <- summary[3]
+
+MilesPerGallon <- rbind(c(1,round(All+ 1 * Carb),round(All + Manual + 1 * Carb)),
+                       c(2,round(All+ 2 * Carb),round(All + Manual + 2 * Carb)),
+                       c(3,round(All+ 3 * Carb),round(All + Manual + 3 * Carb)),
+                       c(4,round(All+ 4 * Carb),round(All + Manual + 4 * Carb)),
+                       c(6,round(All+ 6 * Carb),round(All + Manual + 6 * Carb)),
+                       c(8,round(All+ 8 * Carb),round(All + Manual + 8 * Carb)))
+colnames(MilesPerGallon) <- c("Carburetors","Automatic","Manual")  
+```
+
+MPG = **`r round(All)`** + (**`r round(Manual)`** * AM) + (**`r round(Carb)`** * CARB) where AM=0 for automatic and AM=1 for manual and CARB is the number of carburetors.
+
+# Conclusion
+
+The fuel consumption in Miles per Gallon can be estimated with the model diffrentiating between automatic and manual cars and taking the number of carburetors into account:
+
+```{r, echo = FALSE, results='asis'}
+#Display the p-values for a two factor model"
+kable(MilesPerGallon, padding=2)
+```
+
+\newpage
+
+
+## Appendix: Data and Plots referenced
+
+**What does this dataset look like?**
+```{r, echo = FALSE, eval= TRUE}
+## Get to know the dataset
+str(mtcars)
+```
+
+**How is MPG different between Manual and Automatic cars ?**
+```{r, echo = FALSE, eval= TRUE}
+#Box plot comparison between Automatic / Manual versus Miles per Gallon
+plot(mtcars1$mpg ~ mtcars1$am, type = "h", main = "MT Cars comparison plot", xlab = "Automatic or Manual", ylab = "Miles per Gallon")
+```
+
+**What does the residual plot look like ?**
+```{r, echo = FALSE, eval=TRUE}
+## Residual plot
+plot(resid~mpg, data=mtcarsplus,main = "Residual plot", xlab = "Miles per Gallon", ylab = "Residuals")
+abline(h=0, col="red")
+```
+
+## Appendix of R-code used to generate the analysis document
+
+```{r, echo = TRUE, eval= FALSE}
+## Get to know the dataset
+str(mtcars)
+```
+
+```{r, echo = TRUE, eval= FALSE}
+## Define factor variables
+mtcars1 <- within(mtcars, {
+   am <- factor(am, labels = c("automatic", "manual"))
+   vs <- factor(vs, labels = c("V-shaped","straight"))
+})
+```
+
+```{r, echo = TRUE, eval= FALSE}
+#Box plot comparison between Automatic / Manual versus Miles per Gallon
+plot(mtcars1$mpg ~ mtcars1$am, type = "h", main = "MT Cars comparison plot", xlab = "Automatic or Manual", ylab = "Miles per Gallon")
+```
+
+```{r, echo = TRUE, eval=FALSE, results='asis'}
+#fit a model for am combined with each of the other factors
+# find the significant factors by comparing the p-values (rounded to 4 significant decimals) for am in each
+# select factors that give the lowest p-value - with rouding 0 giving a 95% significance
+fit_am = lm(mpg~factor(am), data = mtcars1)
+sum_am <- summary(fit_am)
+fit_am_Fp <- pf(sum_am$fstatistic[1],sum_am$fstatistic[2],sum_am$fstatistic[3],lower.tail = FALSE)
+
+fit_am_hp = update(fit_am,mpg~factor(am)+hp)
+sum_hp <- summary(fit_am_hp)
+fit_am_hp_Fp <- pf(sum_hp$fstatistic[1],sum_hp$fstatistic[2],sum_hp$fstatistic[3],lower.tail = FALSE)
+fit_am_vs = update(fit_am,mpg~factor(am)+factor(vs))
+sum_vs <- summary(fit_am_vs)
+fit_am_vs_Fp <- pf(sum_vs$fstatistic[1],sum_vs$fstatistic[2],sum_vs$fstatistic[3],lower.tail = FALSE)
+fit_am_cyl = update(fit_am,mpg~factor(am)+cyl)
+sum_cyl <- summary(fit_am_cyl)
+fit_am_cyl_Fp <- pf(sum_cyl$fstatistic[1],sum_cyl$fstatistic[2],sum_cyl$fstatistic[3],lower.tail = FALSE)
+fit_am_disp = update(fit_am,mpg~factor(am)+disp)
+sum_disp <- summary(fit_am_disp)
+fit_am_disp_Fp <- pf(sum_disp$fstatistic[1],sum_disp$fstatistic[2],sum_disp$fstatistic[3],lower.tail = FALSE)
+fit_am_drat = update(fit_am,mpg~factor(am)+drat)
+sum_drat <- summary(fit_am_drat)
+fit_am_drat_Fp <- pf(sum_drat$fstatistic[1],sum_drat$fstatistic[2],sum_drat$fstatistic[3],lower.tail = FALSE)
+fit_am_wt = update(fit_am,mpg~factor(am)+wt)
+sum_wt <- summary(fit_am_wt)
+fit_am_wt_Fp <- pf(sum_wt$fstatistic[1],sum_wt$fstatistic[2],sum_wt$fstatistic[3],lower.tail = FALSE)
+fit_am_qsec = update(fit_am,mpg~factor(am)+qsec)
+sum_qsec <- summary(fit_am_qsec)
+fit_am_qsec_Fp <- pf(sum_qsec$fstatistic[1],sum_qsec$fstatistic[2],sum_qsec$fstatistic[3],lower.tail = FALSE)
+fit_am_gear = update(fit_am,mpg~factor(am)+gear)
+sum_gear <- summary(fit_am_gear)
+fit_am_gear_Fp <- pf(sum_gear$fstatistic[1],sum_gear$fstatistic[2],sum_gear$fstatistic[3],lower.tail = FALSE)
+fit_am_carb = update(fit_am,mpg~factor(am)+carb)
+sum_carb <- summary(fit_am_carb)
+fit_am_carb_Fp <- pf(sum_carb$fstatistic[1],sum_carb$fstatistic[2],sum_carb$fstatistic[3],lower.tail = FALSE)
+
+two_stats <- rbind(
+  c("AM and HP",round(summary(fit_am_hp)$coef[2,4],digits=3),round(summary(fit_am_hp)$coef[3,4],digits=3),round(fit_am_hp_Fp,digits=3)),
+  c("AM and VS",round(summary(fit_am_vs)$coef[2,4],digits=3),round(summary(fit_am_vs)$coef[3,4],digits=3),round(fit_am_vs_Fp,digits=3)),
+  c("AM and CYL",round(summary(fit_am_cyl)$coef[2,4],digits=3),round(summary(fit_am_cyl)$coef[3,4],digits=3),round(fit_am_cyl_Fp,digits=3)),
+  c("AM and DISP",round(summary(fit_am_disp)$coef[2,4],digits=3),round(summary(fit_am_disp)$coef[3,4],digits=3),round(fit_am_disp_Fp,digits=3)),
+  c("AM and DRAT",round(summary(fit_am_drat)$coef[2,4],digits=3),round(summary(fit_am_drat)$coef[3,4],digits=3),round(fit_am_drat_Fp,digits=3)),
+  c("AM and WT",round(summary(fit_am_wt)$coef[2,4],digits=3),round(summary(fit_am_wt)$coef[3,4],digits=3),round(fit_am_wt_Fp,digits=3)),
+  c("AM and QSEC",round(summary(fit_am_qsec)$coef[2,4],digits=3),round(summary(fit_am_qsec)$coef[3,4],digits=3),round(fit_am_qsec_Fp,digits=3)),
+  c("AM and GEAR",round(summary(fit_am_gear)$coef[2,4],digits=3),round(summary(fit_am_gear)$coef[3,4],digits=3),round(fit_am_gear_Fp,digits=3)),
+  c("AM and CARB",round(summary(fit_am_carb)$coef[2,4],digits=3),round(summary(fit_am_carb)$coef[3,4],digits=3),round(fit_am_carb_Fp,digits=3)))
+colnames(two_stats) <- c("Fit","p for AM","p for 2nd","p for Model")
+#Display the p-values for a two factor model"
+kable(two_stats, padding=2)
+```
+
+```{r, echo = TRUE, eval=FALSE, results='asis'}
+#Second Round
+#Combine HP, VS, QSEC and CARB each with AM.
+fit_am_hp_vs = update(fit_am,mpg~factor(am)+hp+factor(vs))
+sum_hp_vs <- summary(fit_am_hp_vs)
+fit_am_hp_vs_Fp <- pf(sum_hp_vs$fstatistic[1],sum_hp_vs$fstatistic[2],sum_hp_vs$fstatistic[3],lower.tail = FALSE)
+
+fit_am_hp_qsec = update(fit_am,mpg~factor(am)+hp+qsec)
+sum_hp_qsec <- summary(fit_am_hp_qsec)
+fit_am_hp_qsec_Fp <- pf(sum_hp_qsec$fstatistic[1],sum_hp_qsec$fstatistic[2],sum_hp_qsec$fstatistic[3],lower.tail = FALSE)
+
+fit_am_hp_carb = update(fit_am,mpg~factor(am)+hp+carb)
+sum_hp_carb <- summary(fit_am_hp_carb)
+fit_am_hp_carb_Fp <- pf(sum_hp_carb$fstatistic[1],sum_hp_carb$fstatistic[2],sum_hp_carb$fstatistic[3],lower.tail = FALSE)
+
+fit_am_vs_qsec = update(fit_am,mpg~factor(am)+factor(vs)+qsec)
+sum_vs_qsec <- summary(fit_am_vs_qsec)
+fit_am_vs_qsec_Fp <- pf(sum_vs_qsec$fstatistic[1],sum_vs_qsec$fstatistic[2],sum_vs_qsec$fstatistic[3],lower.tail = FALSE)
+
+fit_am_vs_carb = update(fit_am,mpg~factor(am)+factor(vs)+carb)
+sum_vs_carb <- summary(fit_am_vs_carb)
+fit_am_vs_carb_Fp <- pf(sum_vs_carb$fstatistic[1],sum_vs_carb$fstatistic[2],sum_vs_carb$fstatistic[3],lower.tail = FALSE)
+
+fit_am_qsec_carb = update(fit_am,mpg~factor(am)+qsec+carb)
+sum_qsec_carb <- summary(fit_am_qsec_carb)
+fit_am_qsec_carb_Fp <- pf(sum_qsec_carb$fstatistic[1],sum_qsec_carb$fstatistic[2],sum_qsec_carb$fstatistic[3],lower.tail = FALSE)
+
+tripple_stats <- rbind(
+  c("AM, HP and VS",round(summary(fit_am_hp_vs)$coef[2,4],digits=3),round(summary(fit_am_hp_vs)$coef[3,4],digits=3),round(summary(fit_am_hp_vs)$coef[4,4],digits=3),round(fit_am_hp_vs_Fp,digits=3)),
+  c("AM, HP and QSEC",round(summary(fit_am_hp_qsec)$coef[2,4],digits=3),round(summary(fit_am_hp_qsec)$coef[3,4],digits=3),round(summary(fit_am_hp_qsec)$coef[4,4],digits=3),round(fit_am_hp_qsec_Fp,digits=3)),
+  c("AM, HP and CARB",round(summary(fit_am_hp_carb)$coef[2,4],digits=3),round(summary(fit_am_hp_carb)$coef[3,4],digits=3),round(summary(fit_am_hp_carb)$coef[4,4],digits=3),round(fit_am_hp_carb_Fp,digits=3)),
+  c("AM, VS and QSEC",round(summary(fit_am_vs_qsec)$coef[2,4],digits=3),round(summary(fit_am_vs_qsec)$coef[3,4],digits=3),round(summary(fit_am_vs_qsec)$coef[4,4],digits=3),round(fit_am_vs_qsec_Fp,digits=3)),
+  c("AM, VS and CARB",round(summary(fit_am_vs_carb)$coef[2,4],digits=3),round(summary(fit_am_vs_carb)$coef[3,4],digits=3),round(summary(fit_am_vs_carb)$coef[4,4],digits=3),round(fit_am_vs_carb_Fp,digits=3)),
+  c("AM, QSEC and CARB",round(summary(fit_am_qsec_carb)$coef[2,4],digits=3),round(summary(fit_am_qsec_carb)$coef[3,4],digits=3),round(summary(fit_am_qsec_carb)$coef[4,4],digits=3),round(fit_am_qsec_carb_Fp,digits=3)))
+colnames(tripple_stats) <- c("Fit","p for AM","p for 2nd","p for 3rd","p for Model")
+#Display the p-values for a two factor model"
+kable(tripple_stats, padding=2)
+```
+
+```{r, echo = TRUE, eval=FALSE, results='asis'}
+#ANOVA analysis of the variance table to test the nested models
+an1 <- anova(fit_am,fit_am_carb)
+an2<-anova(fit_am,fit_am_qsec)
+an3<-anova(fit_am,fit_am_hp)
+an4<-anova(fit_am,fit_am_vs,fit_am_vs_carb)
+ANOVA_stats <- rbind(
+  c("AM and CARB",round(an1[2,6],digits=3),"Accept",".",".","."),
+  c("AM and QSEC",round(an2[2,6],digits=3),"Accept",".",".","."),
+  c("AM and HP",round(an3[2,6],digits=3),"Accept",".",".","."),
+  c("AM and VS",round(an4[2,6],digits=3),"Accept","AM, VS and CARB",round(an4[3,6],digits=3),"Accept"))
+colnames(ANOVA_stats) <- c("Model","Variance","Result","Model","Variance","Result")
+#Display the Variance inflation adding a factor to AM
+kable(ANOVA_stats, padding=2)
+```
+
+```{r, echo = TRUE, eval=FALSE, results='asis'}
+#Check Variance inflation with the VIF function
+#Variance inflation for fit am and carb
+vif_am_carb <- vif(fit_am_carb)
+#Variance inflation for fit am, and qsec
+vif_am_qsec <- vif(fit_am_qsec)
+#Variance inflation for fit am and hp
+vif_am_hp <- vif(fit_am_hp)
+#Variance inflation for fit am, and vs
+vif_am_vs <- vif(fit_am_vs)
+#Variance inflation for fit am, vs and carb
+vif_am_vs_carb <- vif(fit_am_vs_carb)
+VIF_stats <- rbind(
+  c("AM",round(vif_am_carb[1],digits=3),"CARB",round(vif_am_carb[2],digits=3),".","."),
+  c("AM",round(vif_am_qsec[1],digits=3),"QSEC",round(vif_am_qsec[2],digits=3),".","."),
+  c("AM",round(vif_am_hp[1],digits=3),"HP",round(vif_am_hp[2],digits=3),".","."),
+  c("AM",round(vif_am_vs[1],digits=3),"VS",round(vif_am_vs[2],digits=3),".","."),
+  c("AM",round(vif_am_vs_carb[1],digits=3),"VS",round(vif_am_vs_carb[2],digits=3),"CARB",round(vif_am_vs_carb[3],digits=3)))
+colnames(VIF_stats) <- c("Factor","Inflation","Factor","Inflation","Factor","Inflation")
+#Display the Variance inflation adding a factor to AM
+kable(VIF_stats, padding=2)
+```
+
+```{r, echo = TRUE, eval=FALSE, results='asis'}
+#Fit a model with an interaction term.
+fit_am_carb_interact = update(fit_am,mpg~factor(am)*carb)
+Interact_stats <- rbind(
+  c(summary(fit_am_carb_interact)$coef[4,1],summary(fit_am_carb_interact)$coef[4,2],summary(fit_am_carb_interact)$coef[4,3],summary(fit_am_carb_interact)$coef[4,4]))
+colnames(Interact_stats) <- c("Estimate","Std. Error","t value","Pr(>|t|")
+#Display the p-values for a two factor model"
+kable(Interact_stats, padding=2)
+```
+
+```{r, echo = TRUE, eval=FALSE}
+## Residual plot
+mtcarsplus <- mtcars1
+mtcarsplus$resid = resid(fit_am_carb)
+plot(resid~mpg, data=mtcarsplus,main = "Residual plot", xlab = "Miles per Gallon", ylab = "Residuals")
+abline(h=0, col="red")
+residsum <- sum(resid(fit_am_carb)) # sum of residuals should be zero
+```
+
+```{r, echo = TRUE, eval=FALSE, results='asis'}
+#Produce estimates using the chosen model
+summary <- summary(fit_am_carb)$coef[,1]
+All <- summary[1]
+Manual <- summary[2]
+Carb <- summary[3]
+MilesPerGallon <- rbind(c(1,round(All+ 1 * Carb),round(All + Manual + 1 * Carb)),
+                       c(2,round(All+ 2 * Carb),round(All + Manual + 2 * Carb)),
+                       c(3,round(All+ 3 * Carb),round(All + Manual + 3 * Carb)),
+                       c(4,round(All+ 4 * Carb),round(All + Manual + 4 * Carb)),
+                       c(6,round(All+ 6 * Carb),round(All + Manual + 6 * Carb)),
+                       c(8,round(All+ 8 * Carb),round(All + Manual + 8 * Carb)))
+colnames(MilesPerGallon) <- c("Carburetors","Automatic","Manual")  
+
+#Display the p-values for a two factor model"
+kable(MilesPerGallon, padding=2)
+```
