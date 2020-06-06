@@ -4,3 +4,6 @@ This study makes use of Linear Regression analysis to analiseo the data publishe
 * Is an Automatic or Manual transmission better for Mile Per Gallon fuel consumption?
 
 * Quantify the Mile Per Gallon difference between automatic and manual transmissions.
+
+The analysis is done in an RMD file using R base code.
+The original study is part of the Coursera Johns Hopkins Data Specialisation Regression Model course.
